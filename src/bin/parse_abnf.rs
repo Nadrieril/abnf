@@ -40,7 +40,7 @@ fn main() -> std::io::Result<()> {
     let res = rulelist_comp(&data).unwrap().1;
 
     for rule in &res {
-        println!("{}\n", rule);
+        println!("{:#?}\n", rule);
     }
 
     Ok(())

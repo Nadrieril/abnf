@@ -8,71 +8,29 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub struct Rule {
     pub name: String,
-    pub elements: Alternation,
+    pub node: Box<Node>,
 }
 
-impl fmt::Display for Rule {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} = {}", self.name, self.elements)
+impl Rule {
+    pub fn new(name: &str, node: Node) -> Rule {
+        Rule { name: name.into(), node: Box::new(node) }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Alternation {
-    pub concatenations: Vec<Concatenation>,
-}
-
-impl fmt::Display for Alternation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some((last, elements)) = self.concatenations.split_last() {
-            for item in elements {
-                write!(f, "{} / ", item)?;
-            }
-            write!(f, "{}", last)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Concatenation {
-    pub repetitions: Vec<Repetition>,
-}
-
-impl fmt::Display for Concatenation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some((last, elements)) = self.repetitions.split_last() {
-            for item in elements {
-                write!(f, "{} ", item)?;
-            }
-            write!(f, "{}", last)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Repetition {
-    pub repeat: Option<Repeat>,
-    pub element: Element,
-}
-
-impl fmt::Display for Repetition {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(ref repeat) = self.repeat {
-            if let Some(min) = repeat.min {
-                write!(f, "{}", min)?;
-            }
-
-            write!(f, "*")?;
-
-            if let Some(max) = repeat.max {
-                write!(f, "{}", max)?;
-            }
-        }
-
-        write!(f, "{}", self.element)
-    }
+pub enum Node {
+    Alternation(Vec<Box<Node>>),
+    Concatenation(Vec<Box<Node>>),
+    Repetition {
+        repeat: Option<Repeat>,
+        element: Box<Node>,
+    },
+    Rulename(String),
+    Group(Box<Node>),
+    Optional(Box<Node>),
+    CharVal(String),
+    NumVal(Range),
+    ProseVal(String),
 }
 
 #[derive(Debug, Clone)]
@@ -81,90 +39,10 @@ pub struct Repeat {
     pub max: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
-pub enum Element {
-    Rulename(String),
-    Group(Group),
-    Option(Optional),
-    CharVal(String),
-    NumVal(Range),
-    ProseVal(String),
-}
-
-impl fmt::Display for Element {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Element::*;
-
-        match self {
-            Rulename(name) => {
-                write!(f, "{}", name)?;
-            }
-            Group(group) => {
-                write!(f, "{}", group)?;
-            }
-            Option(option) => {
-                write!(f, "{}", option)?;
-            }
-            CharVal(val) => {
-                write!(f, "\"{}\"", val)?;
-            }
-            NumVal(range) => {
-                write!(f, "{}", range)?;
-            }
-            ProseVal(val) => {
-                write!(f, "<{}>", val)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Group {
-    pub alternation: Alternation,
-}
-
-impl fmt::Display for Group {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({})", self.alternation)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Optional {
-    pub alternation: Alternation
-}
-
-impl fmt::Display for Optional {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}]", self.alternation)
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Range {
     OneOf(Vec<u8>),
     Range(u8, u8),
-}
-
-impl fmt::Display for Range {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "%x")?;
-        match self {
-            Range::OneOf(allowed) => {
-                if let Some((last, elements)) = allowed.split_last() {
-                    for item in elements {
-                        write!(f, "{:02X}.", item)?;
-                    }
-                    write!(f, "{:02X}", last)?;
-                }
-            }
-            Range::Range(from, to) => {
-                write!(f, "{:02X}-{:02X}", from, to)?;
-            }
-        }
-        Ok(())
-    }
 }
 
 /// rulelist = 1*( rule / (*WSP c-nl) )
@@ -191,11 +69,11 @@ named!(pub rulelist_comp<Vec<Rule>>, do_parse!(
 named!(pub rule<Rule>, do_parse!(
     name: rulename >>
     defined_as >>
-    elements: elements >>
+    node: elements >>
     c_nl >> (
         Rule {
             name,
-            elements,
+            node,
         }
     )
 ));
@@ -228,7 +106,7 @@ named!(pub defined_as<()>, do_parse!(
 ));
 
 /// elements = alternation *WSP
-named!(pub elements<Alternation>, do_parse!(
+named!(pub elements<Box<Node>>, do_parse!(
     alternation: alternation >>
     many0!(WSP) >> (
         alternation
@@ -271,34 +149,30 @@ named!(pub comment<()>, do_parse!(
 ));
 
 /// alternation = concatenation *(*c-wsp "/" *c-wsp concatenation)
-named!(pub alternation<Alternation>, do_parse!(
+named!(pub alternation<Box<Node>>, do_parse!(
     concatenations: separated_list!(
         tuple!(many0!(c_wsp), char!('/'), many0!(c_wsp)),
         concatenation
     ) >> (
-        Alternation {
-            concatenations
-        }
+        Box::new(Node::Alternation(concatenations))
     )
 ));
 
 // concatenation = repetition *(1*c-wsp repetition)
-named!(pub concatenation<Concatenation>, do_parse!(
+named!(pub concatenation<Box<Node>>, do_parse!(
     repetitions: separated_list!(many0!(c_wsp), repetition) >> (
-        Concatenation {
-            repetitions
-        }
+        Box::new(Node::Concatenation(repetitions))
     )
 ));
 
 /// repetition = [repeat] element
-named!(pub repetition<Repetition>, do_parse!(
+named!(pub repetition<Box<Node>>, do_parse!(
     repeat: opt!(repeat) >>
     element: element >> (
-        Repetition {
+        Box::new(Node::Repetition {
             repeat,
             element,
-        }
+        })
     )
 ));
 
@@ -330,42 +204,38 @@ named!(pub repeat<Repeat>, do_parse!(
 ));
 
 /// element = rulename / group / option / char-val / num-val / prose-val
-named!(pub element<Element>, do_parse!(
+named!(pub element<Box<Node>>, do_parse!(
     element: alt!(
-        map!(rulename,  |e| Element::Rulename(e)) |
-        map!(group,     |e| Element::Group(e)) |
-        map!(option,    |e| Element::Option(e)) |
-        map!(char_val,  |e| Element::CharVal(e)) |
-        map!(num_val,   |e| Element::NumVal(e)) |
-        map!(prose_val, |e| Element::ProseVal(e))
+        map!(rulename,  |e| Node::Rulename(e)) |
+        map!(group,     |e| Node::Group(e)) |
+        map!(option,    |e| Node::Optional(e)) |
+        map!(char_val,  |e| Node::CharVal(e)) |
+        map!(num_val,   |e| Node::NumVal(e)) |
+        map!(prose_val, |e| Node::ProseVal(e))
     ) >> (
-        element
+        Box::new(element)
     )
 ));
 
 /// group = "(" *c-wsp alternation *c-wsp ")"
-named!(pub group<Group>, do_parse!(
+named!(pub group<Box<Node>>, do_parse!(
     char!('(') >>
     many0!(c_wsp) >>
     alternation: alternation >>
     many0!(c_wsp) >>
     char!(')') >> (
-        Group {
-            alternation
-        }
+        Box::new(Node::Group(alternation))
     )
 ));
 
 /// option = "[" *c-wsp alternation *c-wsp "]"
-named!(pub option<Optional>, do_parse!(
+named!(pub option<Box<Node>>, do_parse!(
     char!('[') >> 
     many0!(c_wsp) >>
     alternation: alternation >>
     many0!(c_wsp) >>
     char!(']') >> (
-        Optional {
-            alternation
-        }
+        Box::new(Node::Optional(alternation))
     )
 ));
 
