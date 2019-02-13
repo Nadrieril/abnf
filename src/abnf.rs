@@ -13,7 +13,7 @@ pub struct Rule {
 
 impl fmt::Display for Rule {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} = {}", self.name, self.elements)
+        write!(f, "{}\n\t: {}\n\t;", self.name, self.elements)
     }
 }
 
@@ -26,7 +26,7 @@ impl fmt::Display for Alternation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some((last, elements)) = self.concatenations.split_last() {
             for item in elements {
-                write!(f, "{} / ", item)?;
+                write!(f, "{} | ", item)?;
             }
             write!(f, "{}", last)?;
         }
@@ -59,19 +59,12 @@ pub struct Repetition {
 
 impl fmt::Display for Repetition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.element)?;
         if let Some(ref repeat) = self.repeat {
-            if let Some(min) = repeat.min {
-                write!(f, "{}", min)?;
-            }
-
+            // FIXME: what is the syntax for ANTLR?
             write!(f, "*")?;
-
-            if let Some(max) = repeat.max {
-                write!(f, "{}", max)?;
-            }
         }
-
-        write!(f, "{}", self.element)
+        Ok(())
     }
 }
 
@@ -106,7 +99,7 @@ impl fmt::Display for Element {
                 write!(f, "{}", option)?;
             }
             CharVal(val) => {
-                write!(f, "\"{}\"", val)?;
+                write!(f, "'{}'", val)?;
             }
             NumVal(range) => {
                 write!(f, "{}", range)?;
@@ -149,18 +142,19 @@ pub enum Range {
 
 impl fmt::Display for Range {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "%x")?;
         match self {
             Range::OneOf(allowed) => {
+                write!(f, "(")?;
                 if let Some((last, elements)) = allowed.split_last() {
                     for item in elements {
-                        write!(f, "{:02X}.", item)?;
+                        write!(f, "'\\u00{:02X}' | ", item)?;
                     }
-                    write!(f, "{:02X}", last)?;
+                    write!(f, "'\\u00{:02X}'", last)?;
                 }
+                write!(f, ")")?;
             }
             Range::Range(from, to) => {
-                write!(f, "{:02X}-{:02X}", from, to)?;
+                write!(f, "'\\u00{:02X}'..'\\u00{:02X}'", from, to)?;
             }
         }
         Ok(())

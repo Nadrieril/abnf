@@ -5,17 +5,6 @@ A nom-based ABNF parser.
 Not thoroughly tested, but "works for me" (and with arguably complex ABNFs)
 
 # Branches
+This branch provides a quick&dirty transformation of ABNF to ANTLR syntax.
 
-There are some experimental branches. The `with_generic_node` branch uses an enum...
-
-```Rust
-enum Node {
-    Alternation(Vec<Node>>),
-    Concatenation(Vec<Node>>),
-    ...
-}
-```
-
-...which may be more suitable when implementing transformations.
-
-The `master` branch is a direct transformation of RFC 5234 to code.
+The output should be *almost correct*, but outputs wrong repetitions (see src/abnf.rs:64).
