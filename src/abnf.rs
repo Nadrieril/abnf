@@ -206,14 +206,14 @@ named!(pub repeat<Repeat>, do_parse!(
 /// element = rulename / group / option / char-val / num-val / prose-val
 named!(pub element<Box<Node>>, do_parse!(
     element: alt!(
-        map!(rulename,  |e| Node::Rulename(e)) |
-        map!(group,     |e| Node::Group(e)) |
-        map!(option,    |e| Node::Optional(e)) |
-        map!(char_val,  |e| Node::CharVal(e)) |
-        map!(num_val,   |e| Node::NumVal(e)) |
-        map!(prose_val, |e| Node::ProseVal(e))
+        map!(rulename,  |e| Box::new(Node::Rulename(e))) |
+        map!(group,     |e| e)       |
+        map!(option,    |e| e)       |
+        map!(char_val,  |e| Box::new(Node::CharVal(e)))  |
+        map!(num_val,   |e| Box::new(Node::NumVal(e)))   |
+        map!(prose_val, |e| Box::new(Node::ProseVal(e)))
     ) >> (
-        Box::new(element)
+        element
     )
 ));
 
