@@ -23,7 +23,7 @@ pub enum Node {
     Concatenation(Vec<Box<Node>>),
     Repetition {
         repeat: Option<Repeat>,
-        element: Box<Node>,
+        node: Box<Node>,
     },
     Rulename(String),
     Group(Box<Node>),
@@ -168,10 +168,10 @@ named!(pub concatenation<Box<Node>>, do_parse!(
 /// repetition = [repeat] element
 named!(pub repetition<Box<Node>>, do_parse!(
     repeat: opt!(repeat) >>
-    element: element >> (
+    node: element >> (
         Box::new(Node::Repetition {
             repeat,
-            element,
+            node,
         })
     )
 ));
