@@ -143,8 +143,8 @@ impl fmt::Display for Optional {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Range {
-    OneOf(Vec<u64>),
-    Range(u64, u64),
+    OneOf(Vec<usize>),
+    Range(usize, usize),
 }
 
 impl fmt::Display for Range {
@@ -398,19 +398,19 @@ named!(pub num_val<Range>, do_parse!(
 named!(pub bin_val<Range>, do_parse!(
     char!('b') >>
     start: map!(many1!(BIT), |val| {
-        u64::from_str_radix(&val.into_iter().collect::<String>(), 2).expect("should never happen")
+        usize::from_str_radix(&val.into_iter().collect::<String>(), 2).expect("should never happen")
     }) >>
     compl: opt!(
         alt!(
             map!(many1!(tuple!(char!('.'), many1!(BIT))), |pairs| {
                 let mut all = vec![start];
                 for (_, val) in pairs.into_iter() {
-                    all.push(u64::from_str_radix(&val.into_iter().collect::<String>(), 2).expect("should never happen"))
+                    all.push(usize::from_str_radix(&val.into_iter().collect::<String>(), 2).expect("should never happen"))
                 }
                 Range::OneOf(all)
             }) |
             map!(tuple!(char!('-'), many1!(BIT)), |(_, end)| {
-                Range::Range(start, u64::from_str_radix(&end.into_iter().collect::<String>(), 2).expect("should never happen"))
+                Range::Range(start, usize::from_str_radix(&end.into_iter().collect::<String>(), 2).expect("should never happen"))
             })
         )
     ) >> (
@@ -426,19 +426,19 @@ named!(pub bin_val<Range>, do_parse!(
 named!(pub dec_val<Range>, do_parse!(
     char!('d') >>
     start: map!(many1!(DIGIT), |val| {
-        u64::from_str_radix(&val.into_iter().collect::<String>(), 10).unwrap()
+        usize::from_str_radix(&val.into_iter().collect::<String>(), 10).unwrap()
     }) >>
     compl: opt!(
         alt!(
             map!(many1!(tuple!(char!('.'), many1!(DIGIT))), |pairs| {
                 let mut all = vec![start];
                 for (_, val) in pairs.into_iter() {
-                    all.push(u64::from_str_radix(&val.into_iter().collect::<String>(), 10).unwrap())
+                    all.push(usize::from_str_radix(&val.into_iter().collect::<String>(), 10).unwrap())
                 }
                 Range::OneOf(all)
             }) |
             map!(tuple!(char!('-'), many1!(DIGIT)), |(_, end)| {
-                Range::Range(start, u64::from_str_radix(&end.into_iter().collect::<String>(), 10).unwrap())
+                Range::Range(start, usize::from_str_radix(&end.into_iter().collect::<String>(), 10).unwrap())
             })
         )
     ) >> (
@@ -454,19 +454,19 @@ named!(pub dec_val<Range>, do_parse!(
 named!(pub hex_val<Range>, do_parse!(
     char!('x') >>
     start: map!(many1!(HEXDIG), |val| {
-        u64::from_str_radix(&val.into_iter().collect::<String>(), 16).unwrap()
+        usize::from_str_radix(&val.into_iter().collect::<String>(), 16).unwrap()
     }) >>
     compl: opt!(
         alt!(
             map!(many1!(tuple!(char!('.'), many1!(HEXDIG))), |pairs| {
                 let mut all = vec![start];
                 for (_, val) in pairs.into_iter() {
-                    all.push(u64::from_str_radix(&val.into_iter().collect::<String>(), 16).unwrap())
+                    all.push(usize::from_str_radix(&val.into_iter().collect::<String>(), 16).unwrap())
                 }
                 Range::OneOf(all)
             }) |
             map!(tuple!(char!('-'), many1!(HEXDIG)), |(_, end)| {
-                Range::Range(start, u64::from_str_radix(&end.into_iter().collect::<String>(), 16).unwrap())
+                Range::Range(start, usize::from_str_radix(&end.into_iter().collect::<String>(), 16).unwrap())
             })
         )
     ) >> (
